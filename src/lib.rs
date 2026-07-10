@@ -254,6 +254,35 @@ impl Context {
     pub fn builder() -> ContextBuilder {
         ContextBuilder::default()
     }
+
+    /// Initialize a context directly from a configuration file.
+    pub fn from_file(path: &str) -> Result<Self> {
+        ensure_initialized();
+
+        let path = CString::new(path).map_err(|_| Error {
+            status: Status::InvalidInput,
+            message: "configuration file path contains an interior NUL byte".into(),
+        })?;
+        let mut err = sys::mt_kahypar_error_t {
+            msg: ptr::null(),
+            msg_len: 0,
+            status: sys::mt_kahypar_status_t::SUCCESS,
+        };
+
+        let raw = unsafe { sys::mt_kahypar_context_from_file(path.as_ptr(), &mut err) };
+        if raw.is_null() {
+            let message = if err.msg.is_null() {
+                "mt_kahypar_context_from_file returned NULL without an error message".into()
+            } else {
+                unsafe { CStr::from_ptr(err.msg).to_string_lossy().into_owned() }
+            };
+            let status = err.status.into();
+            unsafe { sys::mt_kahypar_free_error_content(&mut err) };
+            return Err(Error { status, message });
+        }
+
+        Ok(Self { raw })
+    }
 }
 
 /// Fluent builder for [`Context`].  Construct via [`Context::builder`].
