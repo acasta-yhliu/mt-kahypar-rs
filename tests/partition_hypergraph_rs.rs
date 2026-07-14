@@ -42,3 +42,24 @@ fn deterministic_partitioning_rust_api() -> mt_kahypar::Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn individual_target_block_weights_allow_empty_blocks() -> mt_kahypar::Result<()> {
+    let mut ctx = Context::builder()
+        .preset(Preset::Deterministic)
+        .k(3)
+        .epsilon(0.03)
+        .objective(Objective::Km1)
+        .verbose(false)
+        .build()?;
+    ctx.set_individual_target_block_weights(&[3, 3, 3])?;
+
+    let hg = Hypergraph::from_adjacency(&ctx, 6, &[0, 3, 6], &[0, 1, 2, 3, 4, 5], None, None)?;
+    let partition = hg.partition()?;
+    let mut block_weights = partition.block_weights();
+    block_weights.sort_unstable();
+
+    assert_eq!(block_weights, [0, 3, 3]);
+    assert_eq!(partition.km1(), 0);
+    Ok(())
+}

@@ -283,6 +283,44 @@ impl Context {
 
         Ok(Self { raw })
     }
+
+    /// Sets the maximum allowed weight for each block independently.
+    ///
+    /// This replaces the uniform balance constraint derived from `epsilon` and
+    /// must be called before creating a [`Hypergraph`] with this context.
+    pub fn set_individual_target_block_weights(&mut self, block_weights: &[i32]) -> Result<()> {
+        let num_blocks = unsafe { sys::mt_kahypar_get_num_blocks(self.raw) };
+        if num_blocks <= 0 {
+            return Err(Error {
+                status: Status::InvalidParameter,
+                message: "the context's number of blocks is not initialized".into(),
+            });
+        }
+        if block_weights.len() != num_blocks as usize {
+            return Err(Error {
+                status: Status::InvalidInput,
+                message: format!(
+                    "expected {num_blocks} target block weights, got {}",
+                    block_weights.len()
+                ),
+            });
+        }
+        if block_weights.iter().any(|&weight| weight <= 0) {
+            return Err(Error {
+                status: Status::InvalidInput,
+                message: "target block weights must be positive".into(),
+            });
+        }
+
+        unsafe {
+            sys::mt_kahypar_set_individual_target_block_weights(
+                self.raw,
+                num_blocks,
+                block_weights.as_ptr(),
+            );
+        }
+        Ok(())
+    }
 }
 
 /// Fluent builder for [`Context`].  Construct via [`Context::builder`].
