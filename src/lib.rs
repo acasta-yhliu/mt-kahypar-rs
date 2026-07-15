@@ -533,6 +533,53 @@ impl<'ctx> Hypergraph<'ctx> {
         })
     }
 
+    /// Fixes vertices to partition blocks (`-1` leaves a vertex unfixed).
+    ///
+    /// Fixed vertices are supported by the default, quality, and highest-quality presets.
+    pub fn add_fixed_vertices(&mut self, fixed_vertices: &[i32]) -> Result<()> {
+        if fixed_vertices.len() != self.num_vertices {
+            return Err(Error {
+                status: Status::InvalidInput,
+                message: format!(
+                    "expected {} fixed-vertex assignments, got {}",
+                    self.num_vertices,
+                    fixed_vertices.len()
+                ),
+            });
+        }
+        let num_blocks = unsafe { sys::mt_kahypar_get_num_blocks(self.ctx.raw) };
+        if num_blocks <= 0 {
+            return Err(Error {
+                status: Status::InvalidParameter,
+                message: "the context's number of blocks is not initialized".into(),
+            });
+        }
+        if fixed_vertices
+            .iter()
+            .any(|&block| block < -1 || block >= num_blocks)
+        {
+            return Err(Error {
+                status: Status::InvalidInput,
+                message: format!("fixed vertices must be assigned to -1 or 0..{num_blocks}"),
+            });
+        }
+
+        let mut err = sys::mt_kahypar_error_t {
+            msg: ptr::null(),
+            msg_len: 0,
+            status: sys::mt_kahypar_status_t::SUCCESS,
+        };
+        let status = unsafe {
+            sys::mt_kahypar_add_fixed_vertices(
+                self.raw,
+                fixed_vertices.as_ptr(),
+                num_blocks,
+                &mut err,
+            )
+        };
+        unsafe { check_status(status, &mut err) }
+    }
+
     /* ------------ Partitioning & Mapping ---------------- */
 
     /// Partitions a (hyper)graph with the configuration specified in the partitioning context.

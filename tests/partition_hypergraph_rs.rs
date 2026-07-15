@@ -63,3 +63,24 @@ fn individual_target_block_weights_allow_empty_blocks() -> mt_kahypar::Result<()
     assert_eq!(partition.km1(), 0);
     Ok(())
 }
+
+#[test]
+fn fixed_vertices_remain_in_their_blocks() -> mt_kahypar::Result<()> {
+    let ctx = Context::builder()
+        .preset(Preset::Default)
+        .k(2)
+        .epsilon(0.03)
+        .objective(Objective::Km1)
+        .seed(42)
+        .verbose(false)
+        .build()?;
+    let mut hypergraph =
+        Hypergraph::from_adjacency(&ctx, 6, &[0, 3, 6], &[0, 1, 2, 3, 4, 5], None, None)?;
+    hypergraph.add_fixed_vertices(&[0, -1, -1, -1, -1, 1])?;
+
+    let partition = hypergraph.partition()?.extract_partition();
+
+    assert_eq!(partition[0], 0);
+    assert_eq!(partition[5], 1);
+    Ok(())
+}
